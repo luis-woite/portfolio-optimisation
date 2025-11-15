@@ -1,17 +1,7 @@
-# ============================================================
-# 🧮 Portfolio Risk & Return Analyzer – Step 1
-# ------------------------------------------------------------
-# GOAL:
 #   1. Download daily prices for several stocks
 #   2. Compute daily % returns
 #   3. Calculate annualized return & volatility
 #   4. Build covariance and correlation matrices
-# ============================================================
-
-# ---------- 1) Import required libraries ----------
-# pandas: handles data tables (like Excel, but better)
-# numpy:  numerical calculations (e.g., square roots)
-# yfinance:  download stock price data from Yahoo Finance
 
 import yfinance as yf
 import pandas as pd
@@ -20,59 +10,32 @@ import numpy as np
 from scipy.optimize import minimize
 
 
-# ---------- 2) Choose which stocks we want ----------
-# These tickers are just examples — all large U.S. companies.
-# You can replace them later (e.g. ["TSLA","NVDA","AMZN","MSFT","JPM"])
+# Choose which stocks we want 
 tickers = ["AAPL", "MSFT", "META", "GOOG", "XOM"]
 
-# ---------- 3) Download daily closing prices ----------
-# 'start' and 'end' define our time window.
-# progress=False hides the progress bar to keep output clean.
+# Download daily closing prices
 data = yf.download(tickers,
                    start="2024-01-01",
                    end="2024-12-31",
                    progress=False)["Close"]
 
-# ---------- 4) Clean the data ----------
-# Sometimes some days are missing for certain tickers.
-# dropna() removes any rows with missing prices.
+# Clean the data
 data = data.dropna()
 
 # ---------- 5) Take a quick look ----------
-print("✅ First few rows of daily closing prices:")
+print(" First few rows of daily closing prices:")
 print(data.head())
 
-# ============================================================
-# 🧾 STEP 2: Compute daily percentage returns
-# ------------------------------------------------------------
-# pct_change() gives (P_t / P_{t-1} - 1)
-# e.g., if price moves from 100 → 101, return = 0.01 = 1%
-# We drop the first row since it will be NaN (no previous day).
-# ============================================================
+# Compute daily percentage returns
 
 daily_returns = data.pct_change().dropna()
 
 print("\n✅ First few rows of daily returns (in decimals):")
 print(daily_returns.head())
 
-# ============================================================
-# 📈 STEP 3: Annualize mean returns and volatility
-# ------------------------------------------------------------
+# Annualize mean returns and volatility
 # Convention: there are roughly 252 trading days per year.
 
-"""
-if returns are i.i.d., the variance of the sum of 252 returns is: Var(R_annaual) = 252 * Var(R_daily)
-(bc variances add up for independent variables)
-
-vola is sd of variance, so: sd(R_annual) = sqrt(252 * Var(R_daily)) = sqrt(252) * sd(R_daily)
-
-intuition:
-- Mean return scales linearly with time (you earn roughly 252 times the daily return per year on average).
-
-- Volatility scales with the square root of time, because uncertainty accumulates like a random walk — the “range” of possible outcomes spreads out slower (gradually) than linearly.
-
-
-"""
 
 # Annualized Return ≈ mean_daily_return × 252
 # Annualized Volatility ≈ std_daily_return × √252
@@ -87,77 +50,46 @@ mean_daily = daily_returns.mean()
 annual_returns = mean_daily * trading_days
 annual_vol = daily_returns.std() * np.sqrt(trading_days)
 
-print("\n✅ Annualized Expected Returns (per stock):")
+print("\n Annualized Expected Returns (per stock):")
 print(annual_returns)
 
-print("\n✅ Annualized Volatilities (per stock):")
+print("\n Annualized Volatilities (per stock):")
 print(annual_vol)
 
-# ============================================================
-# 🧠 STEP 4: Covariance and Correlation matrices
-# ------------------------------------------------------------
-# Covariance: measures how two assets move together (raw scale)
-# Correlation: standardized version between -1 and +1
-#   +1 = move exactly together
-#   0  = no relationship
-#   -1 = move opposite
-# ------------------------------------------------------------
-# Lower correlation → better diversification benefits
-# ============================================================
+
+# Covariance and Correlation matrices
 
 cov_matrix = daily_returns.cov()
 corr_matrix = daily_returns.corr()
 
 
 
-print("\n✅ Covariance matrix (daily):")
+print("\n Covariance matrix (daily):")
 print(cov_matrix)
 
-print("\n✅ Correlation matrix:")
+print("\n Correlation matrix:")
 print(corr_matrix)
 
-# ============================================================
-# ✅ Summary:
-# You now have:
-#   - prices (data)
-#   - daily returns (daily_returns)
-#   - annualized returns and volatilities (annual_returns, annual_vol)
-#   - covariance and correlation matrices (cov_matrix, corr_matrix)
-# These are the building blocks for portfolio optimization.
-# ============================================================
 
 
 
+# Portfolio return and risk for a given set of weights
 
-# ============================================================
-# 🧮 STEP 5: Portfolio return and risk for a given set of weights
-# ------------------------------------------------------------
-# IDEA:
-#   - each stock has an annual return (we computed that)
-#   - we choose how much money to put in each stock (weights)
-#   - portfolio return = weighted average of individual returns
-#   - portfolio risk   = sqrt( w' * Σ * w )
-#     where:
-#        w  = weights column vector
-#        Σ  = covariance matrix (we have daily, so we annualize it)
-# ============================================================
 
-# ---------- 1) choose some weights ----------
-# We have 5 tickers, so we need 5 weights.
-# Here we just split money equally: 20% in each stock.
-# NOTE: weights must sum to 1.
+
+# choose some weights
+
 weights = np.array([0.2, 0.2, 0.2, 0.2, 0.2])
 
 # quick safety check
 if not np.isclose(weights.sum(), 1.0):
     raise ValueError("Weights must sum to 1.0!")
 
-# ---------- 2) portfolio annual return ----------
-# annual_returns is a pandas Series with index = tickers.
-# We align weights with annual_returns by position.
+# portfolio annual return 
+
 portfolio_return = np.dot(weights, annual_returns)
 
-# ---------- 3) portfolio annual volatility ----------
+# portfolio annual volatility 
 # cov_matrix is currently DAILY covariance.
 # To get ANNUAL covariance, multiply by number of trading days.
 annual_cov_matrix = cov_matrix * trading_days
@@ -165,7 +97,6 @@ annual_cov_matrix = cov_matrix * trading_days
 # Formula: σ_p = sqrt( w' Σ w )
 portfolio_vol = np.sqrt(np.dot(weights.T, np.dot(annual_cov_matrix, weights)))
 
-# ---------- 4) print results ----------
 print("\n===== Portfolio (equal weights) =====")
 print(f"Weights: {dict(zip(tickers, weights))}")
 print(f"Expected annual return: {portfolio_return:.2%}")
@@ -173,9 +104,7 @@ print(f"Expected annual volatility: {portfolio_vol:.2%}")
 
 
 
-# ============================================================
-# ⚙️ Helper functions for portfolio math
-# ============================================================
+# Helper functions for portfolio math
 
 def portfolio_return(weights, annual_returns):
     """
@@ -215,15 +144,7 @@ np.dot([a, b], [c, d]) = a*c + b*d
 
 """
 
-# ============================================================
-# 🧠 STEP 6: Find the minimum-volatility portfolio
-# ------------------------------------------------------------
-# We tell scipy:
-#   "Here are 5 assets. Find weights w1..w5 that minimize portfolio_vol
-#    subject to:
-#       - sum(weights) = 1
-#       - 0 <= weight <= 1  (no shorting)
-# ============================================================
+# Find the minimum-volatility portfolio
 
 num_assets = len(tickers)
 
@@ -237,7 +158,6 @@ constraints = ({
 })
 
 # bounds: each weight between 0 and 1
-# (you can change this later to allow shorting)
 bounds = tuple((0, 1) for _ in range(num_assets))
 
 # run the optimizer
@@ -250,7 +170,7 @@ result = minimize(
     constraints=constraints
 )
 
-# check if it worked
+# checking if it worked
 if not result.success:
     print("Optimization failed:", result.message)
 
@@ -273,19 +193,16 @@ print(f"Portfolio volatility    : {opt_vol:.2%}")
 import matplotlib.pyplot as plt
 from scipy.optimize import minimize
 
-# ============================================================
-# 🧮 STEP 7: Efficient Frontier
-# ============================================================
+# Efficient Frontier
 
 num_assets = len(tickers)
 
-# ---------- 1) Choose target returns for the frontier ----------
-# We'll span from the minimum to the maximum individual asset return.
-# You can tighten or widen this range later if you like.
+# Choose target returns for the frontier ----------
+
 min_ret = annual_returns.min()
 max_ret = annual_returns.max()
 
-# Let's create, say, 30 target returns between min_ret and max_ret
+# Creating, say, 30 target returns between min_ret and max_ret
 target_returns = np.linspace(min_ret, max_ret, 30)
 
 # Lists to store the results for plotting
@@ -293,7 +210,7 @@ frontier_vols = []     # x-axis (risk)
 frontier_rets = []     # y-axis (return)
 frontier_weights = []  # store weights as well (optional, for inspection)
 
-# ---------- 2) Helper: constraint that weights sum to 1 ----------
+# constraint that weights sum to 1 
 def weights_sum_to_one(weights):
     return np.sum(weights) - 1
 
@@ -338,9 +255,7 @@ for target in target_returns:
         print("⚠️ Frontier optimization failed for target:", target)
 
 
-# ============================================================
-# 🎨 Plot the Efficient Frontier
-# ============================================================
+# Plotting EF
 
 plt.figure(figsize=(10, 6))
 
